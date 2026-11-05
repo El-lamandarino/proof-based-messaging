@@ -3,6 +3,10 @@
 // The browser never sees the key.
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
+// Used automatically when the main model is overloaded. Override in Vercel with GEMINI_FALLBACK_MODEL.
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-flash-lite-latest";
+const BUSY = new Set([500, 502, 503, 504]); // temporary errors on Google's side: worth retrying
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MAX_INPUT_CHARS = 120000;
 
 const PROMPTS = {
@@ -150,36 +154,53 @@ export default async function handler(req, res) {
     return;
   }
 
-  try {
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-      {
+  // Try the main model up to 3 times (waits 2s, then 5s), then the fallback model twice.
+  const attempts = [
+    { model: MODEL, wait: 0 }, { model: MODEL, wait: 2000 }, { model: MODEL, wait: 5000 },
+    { model: FALLBACK_MODEL, wait: 0 }, { model: FALLBACK_MODEL, wait: 3000 },
+  ].filter((a, i) => i < 3 || a.model !== MODEL); // skip the fallback if it is the same model
+
+  let lastError = "Gemini request failed.";
+  for (const { model, wait } of attempts) {
+    if (wait) await sleep(wait);
+    let r, data;
+    try {
+      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           generationConfig: { temperature: TEMPERATURE[step], responseMimeType: "application/json" },
         }),
-      }
-    );
-    const data = await r.json();
-    if (!r.ok) {
-      const msg = data?.error?.message || "Gemini request failed.";
-      res.status(r.status === 429 ? 429 : 502).json({
-        error: r.status === 429 ? "Free-tier limit reached. Wait a minute and run again." : msg,
       });
+      data = await r.json().catch(() => ({}));
+    } catch (e) {
+      lastError = "Could not reach Gemini: " + e.message;
+      continue; // network hiccup: try the next attempt
+    }
+
+    if (!r.ok) {
+      lastError = data?.error?.message || `Gemini request failed (${r.status}).`;
+      if (r.status === 429) {
+        res.status(429).json({ error: "Free-tier limit reached. Wait a minute and run again." });
+        return;
+      }
+      if (BUSY.has(r.status) || r.status === 404) continue; // busy, or model name not available: try next
+      res.status(502).json({ error: lastError });
       return;
     }
+
     const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
-    let parsed;
     try {
-      parsed = JSON.parse(text.replace(/^```json\s*|```\s*$/g, ""));
-    } catch {
-      res.status(502).json({ error: "The AI returned invalid JSON. Run this step again." });
+      const parsed = JSON.parse(text.replace(/^```json\s*|```\s*$/g, ""));
+      res.status(200).json({ result: parsed, model });
       return;
+    } catch {
+      lastError = "The AI returned invalid JSON.";
+      continue; // retry once more rather than failing the whole run
     }
-    res.status(200).json({ result: parsed, model: MODEL });
-  } catch (e) {
-    res.status(502).json({ error: "Could not reach Gemini: " + e.message });
   }
+  res.status(503).json({
+    error: "Google's AI servers are busy right now. Wait a few minutes and click Analyze reviews again. (" + lastError + ")",
+  });
 }
