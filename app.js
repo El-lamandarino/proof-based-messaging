@@ -216,6 +216,15 @@ async function run() {
   }
 }
 
+// Persona proof quotes must exist word for word in the cited review.
+function verifyPersonaProof(messaging) {
+  const byId = Object.fromEntries(state.reviews.map((r) => [r.id, r]));
+  (messaging.personas || []).forEach((p) => {
+    if (p.proof?.quote) p.proof.verified = !!byId[p.proof.review_id] && norm(byId[p.proof.review_id].text).includes(norm(p.proof.quote));
+  });
+  return messaging;
+}
+
 function buildResult(product, themes, findings, messaging, proof, model) {
   const claims = proof.claims || [];
   const verdicts = { supported: 0, weak: 0, unsupported: 0 };
@@ -242,7 +251,7 @@ function buildResult(product, themes, findings, messaging, proof, model) {
     },
     themes,
     findings: findings.map((f) => ({ ...f, theme_ids: (f.theme_ids || []).filter((id) => known.has(id)) })),
-    messaging, claims,
+    messaging: verifyPersonaProof(messaging), claims,
     sdr: proof.sdr_check ? { ...proof.sdr_check, metrics: sdrMetrics(messaging.sdr_pitch) } : null,
   };
 }
@@ -374,6 +383,7 @@ function renderPersonas() {
           ? `<p class="evid">Not matched to reviews. Tests whether the messaging is easy to remember and say. Result on the <a href="#messaging">Messaging</a> page.</p>`
           : `<p class="evid">${count(p.name)} reviews from people in this role</p>
              ${q ? `<blockquote><p>“${esc(q.quote)}”</p><cite><code>${esc(q.review_id)}</code> ${esc(q.role)} · ${esc(q.source)}</cite></blockquote>` : ""}
+             ${msg?.lead_message ? `<p class="plead">“${esc(msg.lead_message)}”</p>` : ""}
              ${msg ? `<a class="tomsg" href="#messaging" data-item="${esc(msg.id)}">See their message →</a>` : ""}`}
       </article>`;
   }).join("");
@@ -447,8 +457,29 @@ function line(id, inner, tag = "div") {
 }
 function findItem(id) {
   const m = state.result?.messaging || {};
-  return [m.positioning, m.value_prop, ...(m.pillars || []), ...(m.personas || []), ...(m.objections || []), m.outreach_email, m.sdr_pitch]
+  return [m.positioning, ...(m.taglines || []), m.value_prop, m.full_description, ...(m.pillars || []),
+    ...(m.personas || []), ...(m.objections || []), m.outreach_email, m.sdr_pitch]
     .find((x) => x && x.id === id);
+}
+
+// Word limits from the positioning method; code counts, so the AI's own counting is never trusted.
+const LIMITS = { PS: 25, VP: 15, TG_MIN: 5, TG_MAX: 8 };
+const words = (t) => (String(t || "").match(/[A-Za-z0-9][A-Za-z0-9'&%$.-]*/g) || []).length;
+function countTag(n, max, min = 0) {
+  const off = n > max || n < min;
+  return `<span class="wc${off ? " over" : ""}">${n} words${off ? (n > max ? ` · over ${max}` : ` · under ${min}`) : ""}</span>`;
+}
+
+function needText(need) {
+  const n = String(need || "").trim().replace(/[.\s]+$/, "");
+  return /^(who|that)\b/i.test(n) || /^\w+ing\b/i.test(n) ? n : "who " + n;
+}
+const article = (w) => (/^[aeiou]/i.test(String(w || "").trim()) ? "an" : "a");
+// One sentence, max 25 words: For [target] [need], [product] is a [category] that [benefit], unlike [alternative].
+function positioningSentence(ps, product) {
+  if (!ps) return "";
+  const clean = (x) => String(x || "").trim().replace(/[.\s]+$/, "");
+  return `For ${clean(ps.for_who)} ${needText(ps.need)}, ${product} is ${article(ps.category)} ${clean(ps.category)} that ${clean(ps.key_benefit)}, unlike ${clean(ps.unlike)}.`;
 }
 
 function renderMessaging() {
@@ -465,45 +496,67 @@ function renderMessaging() {
       <li class="t-unsupported">${s.unsupported} unsupported</li>
     </ul>`;
 
-  const ps = m.positioning, vp = m.value_prop || {}, em = m.outreach_email || {};
-  const posPlain = positioningSentence(ps, R.product);
-  const posWords = (posPlain.match(/[A-Za-z0-9'&%$-]+/g) || []).length;
-  const posText = ps ? `For <b>${esc(ps.for_who)}</b> ${esc(needText(ps.need))}, ${esc(R.product)} is the ${esc(ps.category)} that <b>${esc(ps.key_benefit)}</b>, unlike ${esc(ps.unlike)}.` : "";
-  const ra = ps?.rationale;
-  const why = ra ? `<details class="why"><summary>Why this positioning</summary><dl>
-      <div><dt>Alternative</dt><dd>${esc(ra.alternative)}</dd></div>
-      <div><dt>Unique attribute</dt><dd>${esc(ra.unique_attribute)}</dd></div>
-      <div><dt>Target</dt><dd>${esc(ra.target)}</dd></div>
+  const ps = m.positioning, vp = m.value_prop || {}, em = m.outreach_email || {}, fd = m.full_description;
+  const ra = ps?.rationale || {};
+  const posText = ps ? `For <b>${esc(ps.for_who)}</b> ${esc(needText(ps.need))}, ${esc(R.product)} is ${article(ps.category)} ${esc(ps.category)} that <b>${esc(ps.key_benefit)}</b>, unlike ${esc(ps.unlike)}.` : "";
+  const catType = { existing: "Existing category", "sub-niche": "Sub-niche of an existing category", new: "New category" }[ra.category_type] || "";
+
+  const framework = (m.alternatives?.length || m.attributes?.length) ? `
+    <details class="why"><summary>Alternatives and differentiation</summary>
+      ${m.alternatives?.length ? `<h4>What customers use instead</h4><table class="mini"><thead><tr><th>Alternative</th><th>What they give up</th></tr></thead><tbody>
+        ${m.alternatives.map((x) => `<tr><td>${esc(x.alternative)}</td><td>${esc(x.sacrifice)}</td></tr>`).join("")}</tbody></table>` : ""}
+      ${m.key_insight ? `<p class="insight"><span>Key insight</span>${esc(m.key_insight)}</p>` : ""}
+      ${m.attributes?.length ? `<h4>What alternatives can't match</h4><table class="mini"><thead><tr><th>Attribute</th><th>Outcome</th><th>Why it's hard to copy</th></tr></thead><tbody>
+        ${m.attributes.map((x) => `<tr><td><b>${esc(x.attribute)}</b></td><td>${esc(x.outcome)}</td><td>${esc(x.why_unique)}</td></tr>`).join("")}</tbody></table>` : ""}
+    </details>` : "";
+
+  const why = ps?.rationale ? `<details class="why"><summary>Why this positioning</summary><dl>
+      ${catType ? `<div><dt>Category choice</dt><dd><b>${esc(catType)}.</b> ${esc(ra.category_reason || "")}</dd></div>` : ""}
+      ${ra.alternative ? `<div><dt>Alternative</dt><dd>${esc(ra.alternative)}</dd></div>` : ""}
+      ${ra.unique_attribute ? `<div><dt>Unique attribute</dt><dd>${esc(ra.unique_attribute)}</dd></div>` : ""}
+      ${ra.target ? `<div><dt>Target</dt><dd>${esc(ra.target)}</dd></div>` : ""}
       ${ra.left_out?.length ? `<div><dt>Left out on purpose</dt><dd><ul>${ra.left_out.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></dd></div>` : ""}
     </dl></details>` : "";
+
   $("#msg-positioning").innerHTML = `
-    ${ps ? `<section class="block"><h3>Positioning statement · ${posWords} words${posWords > 30 ? ` <span class="over">over the 30-word limit</span>` : ""}</h3>${line(ps.id || "PS", `<span class="pos">${posText}</span>`)}${why}</section>` : ""}
-    <section class="block"><h3>Value proposition</h3>${line(vp.id || "VP", `<span class="vp">${esc(vp.text)}</span>`)}</section>`;
+    ${ps ? `<section class="block"><h3>Positioning statement ${countTag(words(positioningSentence(ps, R.product)), LIMITS.PS)}</h3>
+      ${line(ps.id || "PS", `<span class="pos">${posText}</span>`)}${why}</section>` : ""}
+    ${m.not_for?.length ? `<section class="block"><h3>Who it's not for · use to qualify out</h3>
+      <ul class="notfor">${m.not_for.map((x) => `<li><b>${esc(x.segment)}</b><span>${esc(x.reason)}</span></li>`).join("")}</ul></section>` : ""}
+    ${framework ? `<section class="block">${framework}</section>` : ""}`;
+
   $("#msg-messaging").innerHTML = `
+    ${m.taglines?.length ? `<section class="block"><h3>Tagline options</h3>${m.taglines.map((t) =>
+      line(t.id, `<b class="tagline">${esc(t.text)}</b><span class="meta">${esc(t.angle || "")} ${countTag(words(t.text), LIMITS.TG_MAX, LIMITS.TG_MIN)}</span>`)).join("")}</section>` : ""}
+    <section class="block"><h3>Value proposition ${countTag(words(vp.text), LIMITS.VP)}</h3>${line(vp.id || "VP", `<span class="vp">${esc(vp.text)}</span>`)}</section>
+    ${fd ? `<section class="block"><h3>Full description</h3>${line(fd.id || "FD", `<span>${esc(fd.text)}</span>`)}</section>` : ""}
     <section class="block"><h3>Messaging pillars</h3>${(m.pillars || []).map((p) =>
       line(p.id, `<b>${esc(p.headline)}</b><span>${esc(p.body)}</span>`)).join("")}</section>
     <section class="block"><h3>By persona</h3>${(m.personas || []).map((p) => {
       const per = R.personas.find((x) => x.name === p.persona);
-      return line(p.id, `<b>${esc(p.persona)}${per?.person_name ? ` <small>(${esc(per.person_name)})</small>` : ""}</b><span class="pain">Top pain: ${esc(p.top_pain)}</span><span>${esc(p.message)}</span>${p.evidence_note ? `<em class="note">${esc(p.evidence_note)}</em>` : ""}`);
+      const q = p.proof;
+      return line(p.id, `<b>${esc(p.persona)}${per?.person_name ? ` <small>(${esc(per.person_name)})</small>` : ""}</b>
+        <span class="pain">Cares about: ${esc(p.primary_concern || p.top_pain || "")}</span>
+        ${p.lead_message ? `<span class="lead">“${esc(p.lead_message)}”</span>` : ""}
+        <span>${esc(p.message)}</span>
+        ${q?.quote ? `<span class="proofq${q.verified === false ? " bad" : ""}">Proof: “${esc(q.quote)}” <code>${esc(q.review_id)}</code>${q.verified === false ? " · not found in source text" : ""}</span>` : ""}
+        ${p.evidence_note ? `<em class="note">${esc(p.evidence_note)}</em>` : ""}`);
     }).join("")}</section>`;
+
   $("#msg-sales").innerHTML = `
     <section class="block"><h3>Objection handling</h3>${(m.objections || []).map((o) =>
       line(o.id, `<b>“${esc(o.objection)}”</b><span>${esc(o.response)}</span>`)).join("")}</section>
     <section class="block"><h3>Outreach email · to ${esc(em.persona)}</h3>
       ${line(em.id || "EM", `<b>Subject: ${esc(em.subject)}</b><span class="email">${esc(em.body)}</span>`)}</section>
-    ${sdrHTML(m.sdr_pitch, R.sdr)}`;
+    ${sdrHTML(m.sdr_pitch, R.sdr)}
+    ${m.proof_gaps?.length ? `<section class="block"><h3>Proof gaps · don't claim these yet</h3>
+      <ul class="gaps">${m.proof_gaps.map((g) => `<li><b>${esc(g.claim)}</b><span>${esc(g.reason)}</span></li>`).join("")}</ul></section>` : ""}
+    ${(m.do_say?.length || m.dont_say?.length) ? `<section class="block"><h3>Say this, not that</h3>
+      <div class="dodont">
+        <div><h4>Say</h4><ul>${(m.do_say || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
+        <div><h4>Don't say</h4><ul>${(m.dont_say || []).map((x) => `<li><b>${esc(x.phrase || x)}</b>${x.reason ? `<span>${esc(x.reason)}</span>` : ""}</li>`).join("")}</ul></div>
+      </div></section>` : ""}`;
   renderEvidence();
-}
-
-// One sentence, max 30 words: For [target] who [need], [product] is the [category] that [benefit], unlike [alternative].
-function needText(need) {
-  const n = String(need || "").trim().replace(/[.\s]+$/, "");
-  return /^(who|that)\b/i.test(n) || /^\w+ing\b/i.test(n) ? n : "who " + n;
-}
-function positioningSentence(ps, product) {
-  if (!ps) return "";
-  const clean = (x) => String(x || "").trim().replace(/[.\s]+$/, "");
-  return `For ${clean(ps.for_who)} ${needText(ps.need)}, ${product} is the ${clean(ps.category)} that ${clean(ps.key_benefit)}, unlike ${clean(ps.unlike)}.`;
 }
 
 function sdrHTML(pitch, chk) {
@@ -647,4 +700,4 @@ if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded
 });
 
 // Exposed for testing in Node
-if (typeof module !== "undefined") module.exports = { positioningSentence, parseCSV, norm, personaFor, enrichThemes, sdrMetrics, buyers, excerpt, DEFAULT_PERSONAS };
+if (typeof module !== "undefined") module.exports = { words, verifyPersonaProof, positioningSentence, parseCSV, norm, personaFor, enrichThemes, sdrMetrics, buyers, excerpt, DEFAULT_PERSONAS };
