@@ -45,44 +45,63 @@ INPUT:
 1. Themes extracted from real customer reviews. Each theme has an id, a type, the number of reviews that mention it ("review_count"), how many are from 2025 or later ("recent_count"), how many come from each persona ("persona_counts"), and verified quotes.
 2. Personas defined by the PMM: name, role in the deal, and what they care about.
 
-TASK: Write messaging and sales assets built ONLY on these themes.
+TASK: Write a positioning and messaging framework using the April Dunford method, built ONLY on these themes. Work in this order: alternatives, differentiated attributes, value, target, category, then the copy.
 
-RULES:
-1. Every item must cite the theme ids that support it in "theme_ids". If no theme supports a claim, do not write the claim.
-2. Prefer themes with higher review_count and recent_count. Mention a theme with review_count below 3 only as a secondary point.
-3. Use numbers only if they appear in a quote. Never invent statistics, percentages or customer names.
-4. Use the customers' language from the quotes. Avoid generic marketing words (e.g. "revolutionary", "seamless", "cutting-edge", "unlock") unless customers used them.
-5. Objection responses must be honest: acknowledge the concern, then answer with evidence from "value" themes. Do not deny a weakness that customers report.
-6. Do not name competitors.
-7. Do not use em dashes. Use commas, colons or periods.
-8. Write one message for EACH buyer persona provided, built from themes where that persona has persona_counts above 0, plus shared themes. If a persona has fewer than 3 supporting reviews, say so in "evidence_note".
-9. Write an SDR pitch: the version of this messaging an SDR must remember after one read and say naturally on a first call. Plain spoken words, no jargon or acronyms a prospect would not use, no stacked adjectives. It must say the same thing as the value proposition, not a new claim.
-10. Write the positioning as a senior PMM would, in this order, using only the themes:
-   a. Competitive alternative: what customers used or would use instead (from "trigger" and "pain" themes), e.g. manual review, in-house rules, a fragmented setup. Never a named competitor.
-   b. Unique attribute: the one thing the product does that this alternative cannot. It must be differentiating, not table stakes. Claims every vendor in the category makes (e.g. "accurate", "AI-powered", "easy to use", "great support") are table stakes: leave them out.
-   c. Value: the outcome that attribute delivers, framed in business terms (revenue, cost, time), from "value" themes with the highest review_count and recent_count.
-   d. Target: the segment that cares most and is best served. Use reviewer company sizes and roles; exclude segments that raise fit or cost objections.
-   e. Category: a market category buyers already recognize and budget for.
-   Then write ONE sentence, max 30 words:
-   "For [target] [need], [product] is the [category] that [value by mechanism], unlike [alternative]."
-   - for_who: max 6 words, a specific segment, never "businesses" or "companies".
-   - need: max 8 words, starts with "who" or a verb ending in -ing (e.g. "losing revenue to false declines"), in customer language.
-   - category: max 4 words.
-   - key_benefit: max 14 words, ONE benefit plus the mechanism that makes it possible (e.g. "approves more good orders by carrying the fraud risk itself"). No "and" lists.
-   - unlike: max 5 words, the generic alternative from step a.
-   Rules: no hype adjectives ("leading", "innovative", "powerful", "best-in-class"); no absolute words ("every", "always", "guaranteed", "100%") unless quotes use the same strength; no weakness customers report may be implied as a strength (e.g. do not claim transparency if customers call decisions a black box). Proof points belong in the pillars.
-11. Give every item the id shown in the schema (PS, VP, P1-P3, PE1.., O1.., EM, SD).
+EVIDENCE RULES (apply to everything):
+E1. Every item must cite the theme ids that support it in "theme_ids". If no theme supports a claim, do not write the claim.
+E2. Prefer themes with higher review_count and recent_count. A theme with review_count below 3 can only be a secondary point.
+E3. Use numbers only if they appear in a quote. Never invent statistics, percentages or customer names.
+E4. Use the customers' own words from the quotes. No hype words ("leading", "innovative", "powerful", "best-in-class", "revolutionary", "seamless", "cutting-edge", "unlock", "game-changing").
+E5. No absolute words ("every", "always", "all", "eliminate", "guaranteed", "100%") unless a quote uses the same strength.
+E6. Never present a weakness customers report as a strength (e.g. do not claim transparency if customers call decisions a black box). Put it in proof_gaps and objections instead.
+E7. Table stakes are not differentiation: claims every vendor in the category makes (e.g. "accurate", "AI-powered", "easy to use", "great support") never lead the positioning, value prop or tagline.
+E8. Do not name competitors. Do not use em dashes.
+
+STEP 1. Competitive alternatives: 2 to 4 things customers used or would use instead (status quo, manual work, in-house tools, fragmented setups), from "trigger" and "pain" themes. For each, what they sacrifice. Then one key_insight: what all alternatives have in common that the positioning must exploit.
+STEP 2. Differentiated attributes: 2 to 3 capabilities the alternatives cannot match. Each must be an OUTCOME the customer gets plus why alternatives cannot copy it.
+STEP 3. Target and not-for: the segment that cares most (use reviewer company sizes and roles). Then 2 to 3 "not_for" segments, taken from fit, cost or market objections. These are qualification rules for sales.
+STEP 4. Category: choose "existing" (enter a known category), "sub-niche" (a known category narrowed by the differentiator, e.g. "chargeback-guaranteed fraud prevention platform") or "new". Prefer "sub-niche" in a mature category. Explain why it beats the adjacent category a buyer might file you under.
+STEP 5. Positioning statement: ONE sentence, MAX 25 WORDS IN TOTAL, assembled as:
+   "For [for_who] [need], [product] is a [category] that [key_benefit], unlike [unlike]."
+   - It must contain exactly ONE primary claim (key_benefit). No "and" lists.
+   - for_who max 4 words, a specific segment, never "businesses" or "companies".
+   - need max 6 words, starts with "who" or an -ing verb, in customer language.
+   - category max 5 words. The differentiator may live here (sub-niche).
+   - key_benefit max 6 words, the outcome.
+   - unlike max 3 words, the main alternative from step 1.
+   Count the words of the assembled sentence. If above 25, shorten before answering.
+STEP 6. Messaging hierarchy:
+   - 3 tagline options, 5 to 8 words each, each a different angle (mechanism, simplest, economic buyer).
+   - Value proposition: MAX 15 WORDS, the same promise as the positioning in customer words. Count the words.
+   - Full description: 3 to 4 sentences: category, how it works, unlike the alternative, outcomes customers report.
+   - Exactly 3 messaging pillars, one per differentiated attribute or core outcome.
+STEP 7. Persona messaging: one entry for EACH buyer persona provided, built from themes where that persona has persona_counts above 0, plus shared themes. Each has a different primary concern and a different lead message (max 8 words, in the buyer's own words, never the same headline twice). Add one proof quote copied word for word from the themes' quotes, with its review_id. If a persona has fewer than 3 supporting reviews, say so in "evidence_note".
+STEP 8. Sales enablement:
+   - 3 to 5 objections a prospect would raise, from "objection" themes. Responses acknowledge the concern honestly, then answer with evidence. Max 50 words.
+   - One outreach email to the economic buyer persona, max 90 words, one question as the call to action.
+   - SDR pitch: the version an SDR must remember after one read and say naturally on a first call. Plain spoken words, no jargon, same promise as the value proposition.
+   - proof_gaps: claims the team must NOT make yet, each with the reason (weak evidence, single review, mixed or negative evidence).
+   - do_say: 3 to 5 phrases from customer language to use. dont_say: 3 to 5 phrases to avoid, each with the reason.
+STEP 9. Give every item the id shown in the schema (PS, TG1-TG3, VP, FD, P1-P3, PE1.., O1.., EM, SD).
 
 OUTPUT: JSON only:
-{"positioning":{"id":"PS","for_who":"max 6 words","need":"max 8 words, starts with who or an -ing verb","category":"max 4 words","key_benefit":"max 14 words, one benefit plus mechanism","unlike":"max 5 words","theme_ids":["T1"],
-  "rationale":{"alternative":"what customers moved away from, and why it matters (max 25 words)","unique_attribute":"what the alternative cannot do (max 25 words)","target":"why this segment, and who is excluded (max 25 words)","left_out":["claim deliberately excluded: reason (table stakes, overclaim or customer-reported weakness)"]}},
-"value_prop":{"id":"VP","text":"one or two sentences","theme_ids":["T1"]},
-"pillars":[{"id":"P1","headline":"max 8 words","body":"max 40 words","theme_ids":["T2"]}],
-"personas":[{"id":"PE1","persona":"persona name as provided","top_pain":"...","message":"max 40 words","evidence_note":null,"theme_ids":["T4"]}],
+{"alternatives":[{"alternative":"...","sacrifice":"max 15 words","theme_ids":["T3"]}],
+"key_insight":"max 30 words",
+"attributes":[{"attribute":"max 6 words","outcome":"max 15 words","why_unique":"max 20 words","theme_ids":["T1"]}],
+"not_for":[{"segment":"max 8 words","reason":"max 15 words","theme_ids":["T5"]}],
+"positioning":{"id":"PS","for_who":"max 4 words","need":"max 6 words","category":"max 5 words","key_benefit":"max 6 words","unlike":"max 3 words","theme_ids":["T1"],
+  "rationale":{"category_type":"existing|sub-niche|new","category_reason":"why this category, not the adjacent one (max 30 words)","alternative":"max 25 words","unique_attribute":"max 25 words","target":"max 25 words","left_out":["claim deliberately excluded: reason"]}},
+"taglines":[{"id":"TG1","text":"5 to 8 words","angle":"mechanism|simplest|economic buyer","theme_ids":["T1"]}],
+"value_prop":{"id":"VP","text":"max 15 words","theme_ids":["T1"]},
+"full_description":{"id":"FD","text":"3 to 4 sentences","theme_ids":["T1","T2"]},
+"pillars":[{"id":"P1","headline":"max 8 words","body":"max 30 words","theme_ids":["T2"]}],
+"personas":[{"id":"PE1","persona":"persona name as provided","primary_concern":"max 8 words","lead_message":"max 8 words","message":"max 35 words","proof":{"review_id":"R012","quote":"exact words"},"evidence_note":null,"theme_ids":["T4"]}],
 "objections":[{"id":"O1","objection":"how a prospect would say it","response":"max 50 words","theme_ids":["T6","T2"]}],
 "outreach_email":{"id":"EM","persona":"which persona it targets","subject":"max 7 words","body":"max 90 words, one question as the call to action","theme_ids":["T1"]},
-"sdr_pitch":{"id":"SD","one_liner":"max 15 words","talk_track":["max 12 words","max 12 words","max 12 words"],"theme_ids":["T1"]}}
-Write exactly 3 pillars and 3 to 5 objections.
+"sdr_pitch":{"id":"SD","one_liner":"max 15 words","talk_track":["max 12 words","max 12 words","max 12 words"],"theme_ids":["T1"]},
+"proof_gaps":[{"claim":"what not to claim","reason":"max 20 words","theme_ids":["T2"]}],
+"do_say":["phrase"],
+"dont_say":[{"phrase":"...","reason":"max 12 words"}]}
 
 PERSONAS:
 ${JSON.stringify(personas)}
@@ -96,7 +115,7 @@ INPUT:
 1. Messaging JSON. Each item has an id, text and the theme_ids it claims as support.
 2. Themes JSON with the exact customer quotes behind each theme.
 
-TASK: Check every claim in the messaging. Split long items into separate claims (one factual statement each). Skip pure questions and calls to action.
+TASK: Check every claim in the messaging items that have an id (PS, TG1-TG3, VP, FD, P1-P3, PE.., O.., EM, SD). Split long items into separate claims (one factual statement each). Skip pure questions and calls to action. Use the item's id as "item_id".
 
 Verdicts:
 - "supported": the cited quotes clearly back the claim, from at least 2 reviews
